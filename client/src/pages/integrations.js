@@ -1,0 +1,14 @@
+import { useCallback, useEffect, useState } from 'react';
+import AppShell from '../components/AppShell';
+import ProtectedRoute from '../components/ProtectedRoute';
+import api from '../services/api';
+
+const details = { gmail: ['Gmail', 'Read and send email'], slack: ['Slack', 'Post messages and subscribe to events'], discord: ['Discord', 'Post bot messages'], 'google-sheets': ['Google Sheets', 'Read ranges and append rows'] };
+export default function Integrations() {
+  const [integrations, setIntegrations] = useState([]); const [notice, setNotice] = useState('');
+  const refresh = useCallback(() => api.get('/integrations').then(({ data }) => setIntegrations(data.integrations)).catch((error) => setNotice(error.response?.data?.message || 'Unable to load integrations.')), []);
+  useEffect(() => { refresh(); }, [refresh]);
+  async function connect(provider) { try { const { data } = await api.get(`/integrations/oauth/${provider}/start`); window.location.assign(data.authorizationUrl); } catch (error) { setNotice(error.response?.data?.message || 'Unable to start OAuth.'); } }
+  async function test(provider) { try { const { data } = await api.post(`/integrations/${provider}/test`); setNotice(data.message); } catch (error) { setNotice(`${error.response?.data?.error || 'ERROR'}: ${error.response?.data?.message || 'Integration test failed.'}`); } }
+  return <ProtectedRoute><AppShell><p className="text-sm text-cyan-400">Integration center</p><h1 className="text-3xl font-bold">Connected tools</h1><p className="mt-2 text-slate-400">OAuth tokens are encrypted at rest and never returned to the browser.</p>{notice && <p className="mt-4 rounded-lg bg-slate-900 p-3 text-sm text-slate-300">{notice}</p>}<div className="mt-7 grid gap-4 md:grid-cols-2">{integrations.map((item) => { const [title, description] = details[item.provider]; const connected = item.status === 'connected'; return <section key={item.provider} className="rounded-xl border border-slate-800 bg-slate-900/50 p-5"><div className="flex items-start justify-between"><div><h2 className="font-semibold">{title}</h2><p className="mt-1 text-sm text-slate-400">{description}</p></div><span className={`rounded-full px-2 py-1 text-xs ${connected ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-800 text-slate-400'}`}>{item.status}</span></div>{item.error && <p className="mt-3 text-sm text-red-300">{item.error}</p>}<div className="mt-5 flex gap-2">{!connected ? <button onClick={() => connect(item.provider)} className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">Connect</button> : <><button onClick={() => test(item.provider)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">Test connection</button><button onClick={() => connect(item.provider)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">Reconnect</button></>}</div></section>; })}</div></AppShell></ProtectedRoute>;
+}

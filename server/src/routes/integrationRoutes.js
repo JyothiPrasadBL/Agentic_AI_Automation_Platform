@@ -1,0 +1,13 @@
+const router = require('express').Router();
+const { body } = require('express-validator');
+const controller = require('../controllers/integrationController');
+const { requireAuth } = require('../middleware/auth');
+router.get('/oauth/:provider/callback', controller.callback);
+router.get('/oauth/error', (req, res) => res.status(400).json({ error: 'OAUTH_ERROR', message: req.query.message || 'The provider authorization was not completed.' }));
+router.use(requireAuth);
+router.get('/', controller.list);
+router.get('/status', controller.status);
+router.get('/oauth/:provider/start', controller.start);
+router.post('/', body('provider').isIn(['gmail', 'slack', 'discord', 'google-sheets']), controller.createOrUpdate);
+router.post('/:provider/test', controller.test);
+module.exports = router;
